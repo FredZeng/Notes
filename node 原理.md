@@ -144,9 +144,7 @@ Node对引入过的模块都会进行缓存，以减少二次引入时的开销�
 
 如果在目录分析的过程中没有定位成功任何文件，则自定义模块进入下一个模块路径进行查找。如果模块路径数组都被遍历完毕，依然没有查找到目标文件，则会抛出查找失败的异常。
 
-
-
-3. 模块编译
+##### 模块编译
 
 在Node中，每个文件模块都是一个对象，它的定义如下：
 
@@ -172,3 +170,54 @@ function Module(id, parent) {
 - 其余扩展名文件。它们都被当做`.js`文件载入。
 
 每一个编译成功的模块都会将其文件路径作为索引缓存在`Module._cache`对象上，以提高二次引入的性能。
+
+1. **JavaScript**模块的编译
+
+在编译的过程中，Node对获取的JavaScript文件内容进行了头尾包装。在头部添加了`(function (exports, require, module, __filename, __dirname) {\n`，在尾部添加了`\n});`。这样每个模块文件之间都进行了作用域隔离。包装之后的代码会通过`vm`原生模块的`runInThisContext()`方法执行（类似eval，只是具有明确上下文，不污染全局），返回一个具体的function对象。最后将当前模块对象的`exports`属性、`require()`方法、`module`（模块对象自身），以及在文件定位中得到的完整文件路径和文件目录作为参数传递给这个`function()`执行。
+
+这就是这些变量并没有定义在每个模块文件中却存在的原因。在执行之后，模块的`exports`属性被返回给了调用方。`exports`属性上的任何方法和属性都可以被外部调用到，但是模块中的其余变量或属性则不可直接被调用。
+
+2. C/C++模块的编译
+
+Node调用`process.dlopen()`方法进行加载和执行。在Node的架构下，`dlopen()`方法在Windows和*nix平台下分别有不同的实现，通过libuv兼容层进行了封装。
+
+实际上，`.node`的模块文件并不需要编译，因为它是编写C/C++模块之后编译生成的，所以这里只有加载和执行的过程。在执行的过程中，模块的`exports`对象与`.node`模块产生联系，然后返回给调用者。
+
+C/C++模块给Node使用者带来的优势主要是执行效率方面的，劣势则是C/C++模块的编写门槛比JavaScript高。
+
+3. JSON文件的编译
+
+`.json`文件的编译是3种编译方式中最简单的。Node利用fs模块同步读取JSON文件的内容之后，调用`JSON.parse()`方法得到对象，然后将它赋给模块对象的`exports`，以供外部调用。
+
+#### 核心模块
+
+##### JavaScript核心模块编译过程
+
+在编译所有C/C++文件之前，编译程序需要将所有的JavaScript模块文件编译为C/C++代码。
+
+1. 转存为C/C++代码
+
+Node采用了V8附带的**js2c.py**工具，将所有内置的JavaScript代码（src/node.js 和 lib/*.js）转换成C++里的数组，生成`node_natives.h`头文件。
+
+在这个过程中，JavaScript代码以字符串的形式存储在node命名空间中，是不可直接执行的。在启动Node进程时，JavaScript代码直接加载进内存中。在加载的过程中，JavaScript核心模块经历标识符分析后直接定位到内存中，比普通的文件模块从磁盘中一处一处查找要快很多。
+
+2. 编译JavaScript核心模块
+
+lib目录下的所有模块文件也没有定义require、module、exports这些变量。在引入JavaScript核心模块的过程中，也经历了头尾包装的过程，然后才执行和导出了`exports`对象。与文件模块有区别的地方在于：**获取源码的方法（核心模块是从内存中加载的）以及缓存执行结果的位置**。
+
+JavaScript核心模块的定义如下面的代码所示，源文件通过`process.binding('natives')`取出，编译成功的模块缓存到`NativeModule._cache`对象上，文件模块则缓存到`Module._cache`对象上：
+
+```js
+function NativeModule(id) {
+    this.filename = id + '.js';
+    this.id = id;
+    this.exports = {};
+    this.loaded = false;
+}
+NativeModule._source = process.binding('natives');
+NativeModule._cache = {};
+```
+
+##### C/C++核心模块的编译过程
+
+在核心模块中，有些模块全部由C/C++编写，有些模块则由C/C++完成核心部分，其他部分则由JavaScript实现包装或向外导出，以满足性能需求。后面这种C++模块主内完成核心，JavaScript主外实现封装的模式是Node能够提高性能的常见方式。
