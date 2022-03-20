@@ -220,4 +220,32 @@ NativeModule._cache = {};
 
 ##### C/C++核心模块的编译过程
 
-在核心模块中，有些模块全部由C/C++编写，有些模块则由C/C++完成核心部分，其他部分则由JavaScript实现包装或向外导出，以满足性能需求。后面这种C++模块主内完成核心，JavaScript主外实现封装的模式是Node能够提高性能的常见方式。
+在核心模块中，有些模块全部由C/C++编写，有些模块则由C/C++完成核心部分，其他部分则由JavaScript实现包装或向外导出，以满足性能需求。后面这种C++模块主内完成核心，JavaScript主外实现封装的模式是Node能够提高性能的常见方式。通常，脚本语言的开发速度优于静态语言，但是其性能则弱于静态语言。而Node的这种复合模式可以在开发速度和性能之间找到平衡点。
+
+Node的`buffer`、`crypto`、`evals`、`fs`、`os`等模块都是部分通过C/C++编写的。
+
+1. 内建模块的组织形式
+
+在Node中，内建模块的内部结构定义如下：
+
+```c++
+struct node_module_struct {
+  int version;
+  void *dso_handle;
+  const char *filename;
+  void (*register_func) (v8::Handle<v8::object> target);
+  const char *modname;
+};
+```
+
+每一个内建模块在定义之后，都通过NODE_MODULE宏将模块定义到node命名空间中，模块的具体初始化方法挂载为结构的`register_func`成员。node_extensions.h 文件将这些散列的内建模块统一放进了一个叫 node_module_list 的数组中。
+
+Node提供了`get_builtin_module()`方法从node_module_list数组中取出这些模块。
+
+内建模块的优势在于：首先，它们本身由C/C++编写，性能上优于脚本语言；其次，在进行文件编译时，它们被编译进二进制文件。一旦Node开始执行，它们被直接加载进内存中，无须再次做标识符定位、文件定位、编译等过程，直接就可执行。
+
+2. 内建模块的导出
+
+在Node的模块类型中，文件模块（开发者的自定义模块）可能会依赖核心模块（JavaScript核心模块），核心模块可能会依赖内建模块（C/C++模块）。通常，不推荐文件模块直接调用内建模块。如需调用，直接调用核心模块即可，因为核心模块中基本都封装了内建模块。
+
+Node在启动时，会生成一个全局变量`process`，并提供`Binding()`方法来协助加载内建模块。在加载内建模块时，会先创建一个exports空对象，然后调用`get_builtin_module()`方法取出内建模块对象，通过执行`register_func()`填充exports对象，最后将exports对象按模块名缓存，并返回给调用方完成导出。
