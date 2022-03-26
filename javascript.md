@@ -300,5 +300,149 @@ window.addEventListener('error', err => {
 
 JavaScript 的所有其他对象都继承自`Object`对象，即那些对象都是`Object`的实例。
 
-`Object`对象的原生方法分成两类：`Object`本身的方法与`Object`的实例方法。
+`Object`对象的原生方法分成两类：`Object`本身的方法（静态方法）与`Object`的实例方法。
 
+- `Object`对象本身的方法（静态方法）
+
+```js
+console.log(Object)
+// Object()
+//   assign: ƒ assign()
+//   create: ƒ create()
+//   defineProperties: ƒ defineProperties()
+//   defineProperty: ƒ defineProperty()
+//   entries: ƒ entries()
+//   freeze: ƒ freeze()
+//   fromEntries: ƒ fromEntries()
+//   getOwnPropertyDescriptor: ƒ getOwnPropertyDescriptor()
+//   getOwnPropertyDescriptors: ƒ getOwnPropertyDescriptors()
+//   getOwnPropertyNames: ƒ getOwnPropertyNames()
+//   getOwnPropertySymbols: ƒ getOwnPropertySymbols()
+//   getPrototypeOf: ƒ getPrototypeOf()
+//   hasOwn: ƒ hasOwn()
+//   is: ƒ is()
+//   isExtensible: ƒ isExtensible()
+//   isFrozen: ƒ isFrozen()
+//   isSealed: ƒ isSealed()
+//   keys: ƒ keys()
+//   length: 1
+//   name: "Object"
+//   preventExtensions: ƒ preventExtensions()
+//   prototype: {constructor: ƒ, __defineGetter__: ƒ, __defineSetter__: ƒ, hasOwnProperty: ƒ, __lookupGetter__: ƒ, …}
+//   seal: ƒ seal()
+//   setPrototypeOf: ƒ setPrototypeOf()
+//   values: ƒ values()
+```
+
+- `Object`的实例方法
+
+指定义在`Object`原型对象`Object.prototype`上的方法，它将被所有实例对象共享。
+
+```js
+console.log(Object.prototype)
+// constructor: ƒ Object()
+// hasOwnProperty: ƒ hasOwnProperty()
+// isPrototypeOf: ƒ isPrototypeOf()
+// propertyIsEnumerable: ƒ propertyIsEnumerable()
+// toLocaleString: ƒ toLocaleString()
+// toString: ƒ toString()
+// valueOf: ƒ valueOf()
+// __defineGetter__: ƒ __defineGetter__()
+// __defineSetter__: ƒ __defineSetter__()
+// __lookupGetter__: ƒ __lookupGetter__()
+// __lookupSetter__: ƒ __lookupSetter__()
+// __proto__: （…）
+// get __proto__: ƒ __proto__()
+// set __proto__: ƒ __proto__()
+```
+
+`instanceof`运算符用来验证，一个对象是否为指定的**构造函数**的实例。
+
+```js
+({}) instanceof Object;          // true
+Function instanceof Object;      // true
+Array instanceof Object;         // true
+Boolean instanceof Object;       // true
+String instanceof Object;        // true
+
+// 将`undefined`和`null`转为对象，得到一个空对象
+Object(null);      // {}
+Object(undefined); // {}
+
+// 如果参数是原始类型的值，`Object`方法将其转为对应的包装对象的实例
+Object(1) instanceof Number;     // true
+Object(true) instanceof Boolean; // true
+
+// 如果参数是一个对象，它总是返回该对象，即不用转换
+var arr = [];
+Object(arr) === arr; // true
+```
+
+
+
+#### Object的静态方法
+
+`Object.keys`方法只返回可枚举的属性，`Object.getOwnPropertyNames`方法还返回不可枚举的属性名。
+
+1. 对象属性模型的相关方法
+   - `Object.getOwnPropertyDescriptor()`：获取某个属性的描述对象
+   - `Object.defineProperty()`：通过描述对象，定义某个属性
+   - `Object.defineProperties()`：通过描述对象，定义多个属性
+2. 控制对象状态的方法
+   - `Object.preventExtensions()`：防止对象扩展
+   - `Object.isExtensible()`：判断对象是否可扩展
+   - `Object.seal()`：禁止对象配置
+   - `Object.isSealed()`：判断一个对象是否可配置
+   - `Object.freeze()`：冻结一个对象
+   - `Object.isFrozen()`：判断一个对象是否被冻结
+3. 原型链相关方法
+   - `Object.create()`：该方法可以指定原型对象和属性，返回一个新的对象
+   - `Object.getPrototypeOf()`：获取对象的`Prototype`对象
+
+#### Object的实例方法
+
+定义在`Object.prototype`对象的方法称为实例方法，所有`Object`的实例对象都继承了这些方法；实例方法主要有以下六个：
+
+- `Object.prototype.valueOf()`：返回当前对象对应的值，默认情况下返回对象本身
+- `Object.prototype.toString()`：返回当前对象对应的字符串形式
+
+```js
+var obj = { a: 1 };
+obj.toString() // "[object Object]"
+
+// Object 对象覆盖了 Object.prototype.toString 方法
+Object.toString() // "function Object() { [native code] }"
+```
+
+PS：**第二个 `Object` 表示该值的构造函数**，利用该类型字符串可以有效的判断数据类型。
+
+由于实例对象可能会自定义`toString`方法（数组、字符串、函数、Date 对象都分别部署了自定义的`toString`方法），覆盖掉`Object.prototype.toString`方法，所以为了得到类型字符串，最好直接使用`Object.prototype.toString`方法。通过函数的`call`方法，可以在任意值上调用这个方法，帮助我们判断这个值的类型。
+
+```js
+Object.prototype.toString.call(2)             // "[object Number]"
+Object.prototype.toString.call('')            // "[object String]"
+Object.prototype.toString.call(true)          // "[object Boolean]"
+Object.prototype.toString.call(undefined)     // "[object Undefined]"
+Object.prototype.toString.call(null)          // "[object Null]"
+Object.prototype.toString.call([])            // "[object Array]"
+Object.prototype.toString.call(function() {}) // "[object Function]"
+Object.prototype.toString.call(new Date)      // "[object Date]"
+Object.prototype.toString.call(/test/ig)      // "[object RegExp]"
+Object.prototype.toString.call(Math)          // "[object Math]"
+Object.prototype.toString.call({})            // "[object Object]"
+
+typeof Object   // "function"
+typeof Object() // "object"
+typeof Math     // "object"
+```
+
+- `Object.prototype.toLocaleString()`：返回当前对象对应的本地字符串形式
+
+该方法和`toString`的返回结果相同，也是返回一个值的字符串形式；该方法的主要作用是留出一个接口，让各种不同的对象实现自己版本的`toLocaleString`，用来返回针对某些地域的特定的值。
+
+- `Object.prototype.hasOwnProperty()`：判断某个属性是否为当前对象自身的属性，还是继承自原型对象的属性
+
+该方法接受一个字符串作为参数，返回一个布尔值，表示**该实例对象自身是否具有该属性**。
+
+- `Object.prototype.isPrototypeOf()`：判断当前对象是否为另一个对象的原型
+- `Object.prototype.propertyIsEnumerable()`：判断某个属性是否可以枚举
